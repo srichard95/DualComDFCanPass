@@ -83,10 +83,10 @@ endif
 #
 
 # Define project name here
-PROJECT = EspDriverDevelop_FirmWire
+PROJECT = DualComDFCanPass
 
 # Imported source files and paths
-CHIBIOS = ../../chibios161
+CHIBIOS = c:/ChibiStudio/chibios161/
 # Startup files.
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/startup_stm32f1xx.mk
 # HAL-OSAL files (optional).
@@ -123,6 +123,7 @@ CSRC = $(STARTUPSRC) \
        src/main.c \
        src/console.c \
        src/at_mode.c \
+       src/CanComm.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.

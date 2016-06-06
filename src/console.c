@@ -83,8 +83,6 @@ static const ShellCommand commands[] = {
   {"mem", cmd_mem},
   {"threads", cmd_threads},
   {"test", cmd_test},
-  {"esp_send", esp_send},
-  {"start_driver_test", start_driver_test},
   {"getdllstats", GetDllStats},
   {NULL, NULL}
 };

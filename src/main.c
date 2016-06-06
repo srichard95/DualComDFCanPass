@@ -20,6 +20,7 @@
 #include "console.h"
 #include "EspUart.h"
 #include "at_mode.h"
+#include "CanComm.h"
 
 #include "NetworkLayer.h"
 #include "DataLinkLayer.h"
@@ -29,70 +30,15 @@ static DLLSerialConfig WIFICfg = {
   921600
 };
 
-bool StopTest = false;
-FrameStruct ToSendCorrect = { 0x78, 0x1C, {0x60, 0x7D, 0xDC, 0x69, 0x3B, 0x56, 0xDB, 0xB5, 0xF1, 0xD7, 0xC4, 0xA5}, 0x00};
-FrameStruct ToSendWrong[] = { 0x50, 0x4D, 0xF4, 0xEB, 0xF8, 0xB1, 0x6F, 0x75, 0x43, 0x82, 0xAB, 0x23, 0x42, 0xE9 };
-int SendingFreq = 10000;
-int SendingPiece = 1;
 
-static THD_WORKING_AREA(waUartTest, 128);
-static THD_FUNCTION(UartTestThread, arg) {
-  chRegSetThreadName("Driver Test");
-  systime_t time;
-  time = chVTGetSystemTime();
-  int i;
-  PacketStruct *csomag;
-  DataLinkStatistics *Stats = &DLLS1.DLLStats;
-
-  IPAddress ipcim = {192, 168, 4, 255};
-  while(!StopTest)
-  {
-    time += US2ST(SendingFreq);
-    Stats = &DLLS1.DLLStats;
-    csomag = NWLCreatePacket(&WIFID1);
-
-
-      for(i=0; i<SendingPiece; i++)
-        NWLAddFrameToPacket(csomag, &ToSendCorrect);
-
-      wifiSendUDP(&WIFID1, csomag, ipcim, 4000);
-      /*if((Stats->SentFrames % 10000)==0)
-        SendFrame(&ToSendWrong);*/
-    chThdSleepUntil(time);
-  }
-}
-
-void esp_send(BaseSequentialStream *chp, int argc, char *argv[]) {
-  IPAddress ipcim = {192, 168, 4, 255};
-  PacketStruct *csomag = NWLCreatePacket(&WIFID1);
-  if (csomag == NULL)
-    chprintf(chp, "null\r\n");
-
-
-  int i;
-  for(i = 0; i<MAX_FRAME_PER_PACKET; i++){
-    NWLAddFrameToPacket(csomag, &ToSendCorrect);
-  }
-
-  wifiSendUDP(&WIFID1, csomag, ipcim, 4000);
-
-  DataLinkStatistics *Stats = &DLLS1.DLLStats;
-
-  chprintf(chp, "SentFrames: %d\r\n", Stats->SentFrames);
-}
-
-
-void start_driver_test(BaseSequentialStream *chp, int argc, char *argv[]) {
-  StopTest = false;
-  SendingFreq = atoi(argv[0]);
-  SendingPiece = atoi(argv[1]);
+void GetDllStats(BaseSequentialStream *chp, int argc, char *argv[]) {
   DataLinkStatistics *Stats = &DLLS1.DLLStats;
   NetworkStatistics *NWLStats = &WIFID1.NWLStats;
-  chThdCreateStatic(waUartTest, sizeof(waUartTest), NORMALPRIO+1, UartTestThread, NULL);
+
   while (chnGetTimeout((BaseChannel *)chp, TIME_IMMEDIATE) == Q_TIMEOUT) {
     chprintf(chp, "\x1B\x63");
     chprintf(chp, "\x1B[2J");
-    chprintf(chp, "DRIVER STRESS TEST\r\n");
+    chprintf(chp, "DUALFRAMEWORK STATISTICS\r\n");
 
     Stats = &DLLS1.DLLStats;
     int lost = Stats->SentFrames - Stats->ReceivedFrames;
@@ -112,27 +58,7 @@ void start_driver_test(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     chThdSleepMilliseconds(100);
   }
-  StopTest = true;
 }
-
-void GetDllStats(BaseSequentialStream *chp, int argc, char *argv[]) {
-
-  DataLinkStatistics *Stats = &DLLS1.DLLStats;
-  chprintf(chp, "DataLinkLayer Statistics\r\n");
-
-  Stats = &DLLS1.DLLStats;
-  int lost = Stats->SentFrames - Stats->ReceivedFrames;
-  chprintf(chp, "Sent: %d\r\n", Stats->SentFrames);
-  chprintf(chp, "Received: %d\r\n", Stats->ReceivedFrames);
-  chprintf(chp, "LostFrames: %d\r\n", Stats->LostFrames);
-  chprintf(chp, "Sync: %d\r\n", Stats->SyncCounter);
-  chprintf(chp, "SyncFrameSentCounter: %d\r\n", Stats->SyncFrameSentCounter);
-  chprintf(chp, "SyncTimeout: %d\r\n", Stats->SyncTimeout);
-  chprintf(chp, "FreeFilledBuffer: %d\r\n", Stats->FreeFilledBuffer);
-  chprintf(chp, "FreeFreeBuffer: %d\r\n", Stats->FreeFreeBuffer);
-}
-
-
 
 
 /*
@@ -155,12 +81,12 @@ int main(void) {
 
   chThdSleepMilliseconds(100);
   consoleInit();
-  //StartUart();
 
 
   wifiInit();
   wifiStart(&WIFID1, &DLLS1,&WIFICfg);
 
+  CanCommInit();
 
   /*
    * Normal main() thread activity, in this demo it does nothing except
